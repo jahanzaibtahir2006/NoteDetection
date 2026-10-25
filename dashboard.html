@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Note Detection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f6f9; --panel: #ffffff; --line: #e2e7ee; --text: #0f1b2d;
+    --muted: #5f6f84; --accent: #0f9d58; --accent-soft: rgba(15, 157, 88, .1); --accent-line: rgba(15, 157, 88, .3);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: Inter, system-ui, sans-serif; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .brand { font-weight: 800; font-size: 20px; letter-spacing: -0.02em; }
+  .brand span { color: var(--accent); }
+  .live { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #e53935; animation: pulse 1.4s infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; padding: 20px 24px; }
+  .video { align-self: start; background: #000; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(15, 27, 45, .08); }
+  .video img { display: block; width: 100%; height: auto; }
+  aside { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(15, 27, 45, .08); }
+  .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+  .total { font-size: 48px; font-weight: 800; margin: 6px 0 14px; font-variant-numeric: tabular-nums; }
+  .total small { font-size: 20px; color: var(--muted); font-weight: 500; margin-right: 6px; }
+  .notes { display: flex; flex-wrap: wrap; gap: 8px; min-height: 34px; }
+  .chip { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-line); padding: 6px 12px; border-radius: 999px; font-weight: 600; font-size: 14px; }
+  .empty { color: var(--muted); font-size: 14px; }
+  .stats { color: var(--muted); font-size: 13px; display: flex; justify-content: space-between; }
+  .row { display: flex; justify-content: space-between; align-items: baseline; }
+  .value { font-weight: 700; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; margin: 14px 0 6px; accent-color: var(--accent); }
+  .hint { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; }
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; padding: 16px; }
+    header { padding: 14px 16px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Note<span>Detection</span></div>
+  <div class="live"><div class="dot"></div>LIVE</div>
+</header>
+<main>
+  <div class="video"><img src="/video" alt="Live camera"></div>
+  <aside>
+    <div class="card">
+      <div class="label">You have</div>
+      <div class="total"><small>Rs</small><span id="total">0</span></div>
+      <div class="notes" id="notes"></div>
+    </div>
+    <div class="card">
+      <div class="row"><div class="label">Detection threshold</div><span class="value" id="confValue">–</span></div>
+      <input type="range" id="conf" min="0.1" max="0.9" step="0.05" aria-label="Detection threshold">
+      <div class="hint"><span>Finds more notes</span><span>Fewer mistakes</span></div>
+    </div>
+    <div class="stats"><span>YOLO26 · FastAPI · Whisper</span><span id="fps">0 FPS</span></div>
+  </aside>
+</main>
+<script>
+  const el = (id) => document.getElementById(id);
+  let confReady = false;
+
+  el("conf").addEventListener("input", async (e) => {
+    el("confValue").textContent = Number(e.target.value).toFixed(2);
+    await fetch("/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conf: Number(e.target.value) }),
+    });
+  });
+
+  async function refresh() {
+    try {
+      const s = await (await fetch("/state")).json();
+      el("total").textContent = s.total.toLocaleString("en-US");
+      el("fps").textContent = `${s.fps} FPS`;
+      if (!confReady) {
+        el("conf").value = s.conf;
+        el("confValue").textContent = s.conf.toFixed(2);
+        confReady = true;
+      }
+      el("notes").innerHTML = s.notes.length
+        ? s.notes.map((n) => `<span class="chip">Rs ${n.toLocaleString("en-US")}</span>`).join("")
+        : '<span class="empty">No notes in view</span>';
+    } catch (e) { /* server restarting */ }
+  }
+  setInterval(refresh, 400);
+  refresh();
+</script>
+</body>
+</html>

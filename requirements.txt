@@ -1,0 +1,14 @@
+ultralytics>=8.4
+lap
+transformers>=4.50,<5
+opencv-python
+numpy
+mss
+fastapi
+uvicorn[standard]
+python-multipart
+faster-whisper
+edge-tts
+sounddevice
+pygame
+pyyaml
